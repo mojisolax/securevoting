@@ -2,6 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
+import votingRoutes from './routes/voting.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -11,6 +14,11 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/voting', votingRoutes);
+app.use('/api/admin', adminRoutes);
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -34,13 +42,3 @@ connectDB().then(() => {
 app.get('/', (req, res) => {
   res.send('Caleb University Voting System API is running...');
 });
-
-// Database Models (Example)
-const VoterSchema = new mongoose.Schema({
-  matricNo: { type: String, required: true, unique: true },
-  fullName: String,
-  hasVoted: { type: Boolean, default: false },
-  votedAt: Date
-});
-
-const Voter = mongoose.model('Voter', VoterSchema);
