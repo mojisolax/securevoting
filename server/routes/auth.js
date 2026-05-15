@@ -9,13 +9,13 @@ const router = express.Router();
 // @route   POST api/auth/register
 // @desc    Register a student
 router.post('/register', async (req, res) => {
-  const { matricNo, fullName, email, password } = req.body;
+  const { matricNo, fullName, email, password, college, department } = req.body;
 
   try {
     // 1. Check if user already exists in MongoDB
     let user = await User.findOne({ matricNo });
     if (user) {
-      return res.status(400).json({ message: 'Student already registered' });
+      return res.status(400).json({ message: 'Student with this matric number already exists.' });
     }
 
     // 2. Hash Password
@@ -27,31 +27,41 @@ router.post('/register', async (req, res) => {
       matricNo,
       fullName,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      college,
+      department
     });
     await user.save();
 
     // 4. Sync with Supabase (Dual-Write)
-    const { data, error } = await supabase
+    const { data, error: supabaseError } = await supabase
       .from('users')
       .insert([
-        { matric_no: matricNo, full_name: fullName, email: email, has_voted: false }
+        { 
+          matric_no: matricNo, 
+          full_name: fullName, 
+          email: email, 
+          has_voted: false,
+          college: college,
+          department: department
+        }
       ]);
 
-    if (error) {
-      console.error('Supabase Sync Error:', error.message);
-      // We don't block the registration if Supabase fails, but we log it
+    if (supabaseError) {
+      console.error('Supabase Sync Error:', supabaseError.message);
+      // Optional: If you want registration to fail if Supabase fails, uncomment below
+      // throw new Error('Supabase sync failed: ' + supabaseError.message);
     }
 
     // 5. Generate JWT
     const payload = { userId: user.id, role: user.role };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
 
-    res.status(201).json({ token, user: { id: user.id, fullName, matricNo } });
+    res.status(201).json({ token, user: { id: user.id, fullName, matricNo, role: user.role } });
 
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Registration Error:', err.message);
+    res.status(500).json({ message: 'Registration failed: ' + err.message });
   }
 });
 
